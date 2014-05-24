@@ -2,8 +2,8 @@
 import argparse
 import numpy as np
 from mpi4py import MPI
-from region import *
-from utils import *
+from pyswr.region import *
+from pyswr.utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--steps", help="Number of iterations",

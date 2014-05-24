@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
 from collections import Iterable
+import argparse
 
 def one_d_poisson(n, h, include_boundary=True):
     """
@@ -207,3 +208,22 @@ def as_tuple(a):
     else:
         return (a,)
     
+
+# Setup argument parser        
+parser1d = argparse.ArgumentParser()
+parser1d.add_argument("-s", "--steps", help="Number of iterations",
+                      type=int, default=1)
+parser1d.add_argument("-x", "--nx", help="Total number of x points (global)",
+                      type=int, default=100)
+parser1d.add_argument("-t", "--nt", help="Total number of t points (global)",
+                      type=int, default=100)
+parser1d.add_argument("-o", "--overlap", help="overlap",
+                      type=int, default=2)
+parser1d.add_argument("--plot", help="Plot Results",
+                      action="store_true")
+parser1d.add_argument("--error", help="Print the error",
+                      action="store_true")
+parser1d.add_argument("--time", help="Print the average of elapsed run times",
+                      action="store_true")        
+
+#args1d = parser1d.parse_args()

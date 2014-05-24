@@ -1,5 +1,5 @@
 import numpy as np
-from utils import *
+from pyswr.utils import *
 
 class ImplicitSolver1D(object):
     

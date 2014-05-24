@@ -2,8 +2,8 @@
 Implicit solvers for the heat equation with recursive bounary conditions
 """
 import numpy as np
-from region import *
-from utils import *
+from pyswr.region import *
+from pyswr.utils import *
 
 class ImplicitSolver1DRec(object):
     """Recursive implicit boundary conditions for 1D heat equation

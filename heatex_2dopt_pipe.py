@@ -3,10 +3,10 @@ import time
 import argparse
 import numpy as np
 from mpi4py import MPI
-from region import *
-from recursive import *
-from utils import *
-from itertable import *
+from pyswr.region import *
+from pyswr.recursive import *
+from pyswr.utils import *
+from pyswr.itertable import *
 
 # TODO Move argparse code into seperate file
 parser = argparse.ArgumentParser()

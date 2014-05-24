@@ -3,24 +3,11 @@ import time
 import argparse
 import numpy as np
 from mpi4py import MPI
-from region import *
-from recursive import *
-from utils import *
+from pyswr.region import *
+from pyswr.recursive import *
+from pyswr.utils import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--steps", help="Number of iterations",
-                    type=int, default=1)
-parser.add_argument("-x", "--nx", help="Total number of x points (global)",
-                    type=int, default=100)
-parser.add_argument("-t", "--nt", help="Total number of t points (global)",
-                    type=int, default=100)
-parser.add_argument("--plot", help="Plot Results",
-                    action="store_true")
-parser.add_argument("--error", help="Print the error",
-                    action="store_true")
-parser.add_argument("--time", help="Print the average of elapsed run times",
-                    action="store_true")
-args = parser.parse_args()
+args = parser1d.parse_args()
 
 comm  = MPI.COMM_WORLD
 rank  = comm.rank
