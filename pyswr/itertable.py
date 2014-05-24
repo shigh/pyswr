@@ -34,6 +34,7 @@ class IterTable(object):
                         if self.itr_level<self.n_itr-1 else 0
         self.itr_prev = self.itr_level-1 \
                         if self.itr_level>0 else self.n_itr-1
+        self.last_itr = -1
             
     
     @property

@@ -5,18 +5,18 @@ from mpi4py import MPI
 from pyswr.region import *
 from pyswr.utils import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--steps", help="Number of iterations",
-                    type=int, default=1)
-parser.add_argument("-r", "--regions", help="Number of regions",
-                    type=int, default=1)
-parser.add_argument("-x", "--nx", help="Total number of x points (global)",
-                    type=int, default=100)
-parser.add_argument("-t", "--nt", help="Total number of t points (global)",
-                    type=int, default=100)
-parser.add_argument("-o", "--overlap", help="overlap",
-                    type=int, default=2)
-args = parser.parse_args()
+# parser = argparse.ArgumentParser()
+# parser.add_argument("-s", "--steps", help="Number of iterations",
+#                     type=int, default=1)
+# parser.add_argument("-r", "--regions", help="Number of regions",
+#                     type=int, default=1)
+# parser.add_argument("-x", "--nx", help="Total number of x points (global)",
+#                     type=int, default=100)
+# parser.add_argument("-t", "--nt", help="Total number of t points (global)",
+#                     type=int, default=100)
+# parser.add_argument("-o", "--overlap", help="overlap",
+#                     type=int, default=2)
+args = parser1d.parse_args()
 
 
 comm = MPI.COMM_WORLD

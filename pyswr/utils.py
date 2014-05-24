@@ -219,6 +219,8 @@ parser1d.add_argument("-t", "--nt", help="Total number of t points (global)",
                       type=int, default=100)
 parser1d.add_argument("-o", "--overlap", help="overlap",
                       type=int, default=2)
+parser1d.add_argument("-r", "--regions", help="Number of regions",
+                      type=int, default=1)
 parser1d.add_argument("--plot", help="Plot Results",
                       action="store_true")
 parser1d.add_argument("--error", help="Print the error",
