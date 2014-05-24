@@ -7,26 +7,7 @@ from pyswr.region import *
 from pyswr.recursive import *
 from pyswr.utils import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--steps", help="Number of iterations",
-                    type=int, default=1)
-parser.add_argument("-x", "--nx", help="Total number of x points (global)",
-                    type=int, default=100)
-parser.add_argument("-y", "--ny", help="Total number of y points (global)",
-                    type=int, default=100)
-parser.add_argument("-t", "--nt", help="Total number of t points (global)",
-                    type=int, default=100)
-parser.add_argument("--reg-x", help="Number of regions in x",
-                    type=int, default=-1)
-parser.add_argument("--reg-y", help="Number of regions in y",
-                    type=int, default=-1)
-parser.add_argument("--plot", help="Plot Results",
-                    action="store_true")
-parser.add_argument("--error", help="Print the error",
-                    action="store_true")
-parser.add_argument("--time", help="Print the average of elapsed run times",
-                    action="store_true")
-args = parser.parse_args()
+args = parser2d.parse_args()
 
 #######################################
 # Set up MPI

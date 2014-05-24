@@ -226,4 +226,24 @@ parser1d.add_argument("--error", help="Print the error",
 parser1d.add_argument("--time", help="Print the average of elapsed run times",
                       action="store_true")        
 
-#args1d = parser1d.parse_args()
+
+parser2d = argparse.ArgumentParser()
+parser2d.add_argument("-s", "--steps", help="Number of iterations",
+                      type=int, default=1)
+parser2d.add_argument("-x", "--nx", help="Total number of x points (global)",
+                      type=int, default=100)
+parser2d.add_argument("-y", "--ny", help="Total number of y points (global)",
+                      type=int, default=100)
+parser2d.add_argument("-t", "--nt", help="Total number of t points (global)",
+                      type=int, default=100)
+parser2d.add_argument("--reg-x", help="Number of regions in x",
+                      type=int, default=-1)
+parser2d.add_argument("--reg-y", help="Number of regions in y",
+                      type=int, default=-1)
+parser2d.add_argument("--plot", help="Plot Results",
+                      action="store_true")
+parser2d.add_argument("--error", help="Print the error",
+                      action="store_true")
+parser2d.add_argument("--time", help="Print the average of elapsed run times",
+                      action="store_true")
+
