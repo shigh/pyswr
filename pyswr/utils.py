@@ -118,50 +118,52 @@ def three_d_heat_btcs(dt, nz, dz, ny, dy, nx, dx):
     
     return A.tocsr()
     
-def boundary_points(n_steps, n_regions):
-    """Location of boundary interfaces if overlap=0
-    """
-    k = int(n_steps/n_regions)
-    points = [k*i for i in range(1, n_regions)]
-    points = [1] + points + [n_steps]
-    return [p-1 for p in points]
-    #return np.array(points, np.int) - 1
 
-def region_slice_index(n_steps, n_regions, overlap):
-    """Slice indicies of regions in an array.
-    """    
-    min_point = 0
-    max_point = n_steps-1
-    bp = boundary_points(n_steps, n_regions)
-            
-    rsi = []
-    for i in range(n_regions):
-        start = bp[i]
-        stop  = bp[i+1]
-        if start > min_point:
-            start -= overlap
-        if stop  < max_point:
-            stop  += overlap
-        rsi.append((start, stop+1))
-    return rsi
+def partition_domain(N, n, k):
+    domain_size = int(round((float(N+(n-1)*(1+k)))/(float(n))))
+    domains = []
+    last_end = k
+    for i in range(n):
+        domains.append((last_end-k,
+                        last_end-k+domain_size))
+        last_end = last_end-k+domain_size-1
 
-def region_views(arr, n_regions, overlap):
-    """Views of all regions in an array.
-    """    
-    n_steps = len(arr)  
-    rsi = region_slice_index(n_steps, n_regions, overlap) 
-    
+    domains[-1] = (domains[-1][0], N)    
+    return domains
+
+
+def region_views(array, n, k):
+    N = array.shape[-1]
+    domains = partition_domain(N, n, k)
     views = []
-    for idx in rsi:
-        views.append(arr[idx[0]:idx[1]])
+    for i in range(n):
+        a, b = domains[i]
+        views.append(array[a:b])
+    
     return views
+
+
+def build_domains(init_vals, Nt, n, k):
+    
+    N = len(init_vals)
+    
+    domains = partition_domain(N, n, k)
+    Exa = [np.zeros((Nt, b-a))   for a,b in domains]
+    Hya = [np.zeros((Nt, b-a-1)) for a,b in domains]
+    
+    for i in range(n):
+        a, b = domains[i]
+        Exa[i][0,:] = init_vals[a:b]
+
+    return (Exa, Hya)
+    
 
 def region_views_2d(arr, n_regions_y, n_regions_x, overlap_y=0, overlap_x=0):
     """Views of all regions in an array.
     """    
     ny, nx = arr.shape
-    rsi_y = region_slice_index(ny, n_regions_y, overlap_y)
-    rsi_x = region_slice_index(nx, n_regions_x, overlap_x)
+    rsi_y = partition_domain(ny, n_regions_y, overlap_y)
+    rsi_x = partition_domain(nx, n_regions_x, overlap_x)
     
     views = [[arr[rsi_y[j][0]:rsi_y[j][1], rsi_x[i][0]:rsi_x[i][1]]
               for i in range(n_regions_x)]
@@ -177,6 +179,7 @@ def array_avg_denom(n_steps, n_arrays, overlap):
     for rv in region_views(base, n_arrays, overlap):
         rv += 1
     return base
+
 
 def combine_arrays(arrays, n_steps, overlap=0):
     """Average together arrays in domain decomp
@@ -195,7 +198,6 @@ def combine_arrays(arrays, n_steps, overlap=0):
         a[:] = a + b
 
     return avg_array/denom
-    
     
 
 def as_tuple(a):        

@@ -13,7 +13,6 @@ rank = comm.rank
 size = comm.size
 
 overlap = args.overlap
-offset  = overlap*2
 nt = args.nt
 nx = args.nx
 
@@ -31,7 +30,7 @@ solver.x[:] = f0
 region.slices[0][:] = f0
 
 
-swr_1d_heat(MPI, comm, size, region, solver, f0, args.steps, offset)
+swr_1d_heat(MPI, comm, size, region, solver, f0, args.steps, overlap)
 
 
 if args.error:    
