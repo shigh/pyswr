@@ -6,6 +6,7 @@ from mpi4py import MPI
 from pyswr.region import *
 from pyswr.recursive import *
 from pyswr.utils import *
+from pyswr.swr import *
 
 args = parser1d.parse_args()
 
@@ -30,48 +31,21 @@ x0 = region_views(x0_full, n_reg, 0)[rank]
 has_left  = rank>0
 has_right = rank<n_reg-1
 
-right = rank+1
-left  = rank-1
-
 # Build solver and region
 solver = ImplicitSolver1DRec(dt, len(f0), dx, has_left, has_right)
 region = RecRegion(nt, len(solver.x))
 region.slices[0][:] = f0
 
-last_slice_vals = []
-def update_last_slice_vals(t, step):
-    if args.error and t==(nt-1):
-        last_slice_vals.append((rank, step, region.slices[nt-1].copy()))
+# last_slice_vals = []
+# def update_last_slice_vals(t, step):
+#     if args.error and t==(nt-1):
+#         last_slice_vals.append((rank, step, region.slices[nt-1].copy()))
 
 start = time.clock()
-for step in range(args.steps):
 
-    # Reset solver for next iteration
-    solver.x[:] = region.slices[0]
-    
-    # Apply solver over each time step
-    for t in range(1, nt):
-        solver.g = [region.g[0][0][t], region.g[0][-1][t]]
-        solver.solve()
-        region.update_cols(t, solver.x)
-        update_last_slice_vals(t, step)
+swr_1dopt_heat(MPI, comm, n_reg, region, solver, args.steps)
+comm.Barrier()
 
-    send_requests = []
-    if has_right:
-        rr = comm.Isend(region.send_g(0, -1), dest=right)
-        send_requests.append(rr)
-    if has_left:
-        rl = comm.Isend(region.send_g(0, 0), dest=left)
-        send_requests.append(rl)
-        
-    if has_right:
-        comm.Recv(region.g[0][-1], source=right)
-    if has_left:
-        comm.Recv(region.g[0][0], source=left)
-        
-    MPI.Request.Waitall(send_requests)
-
-comm.Barrier()    
 end = time.clock()
 elapsed_time = end - start
 
@@ -84,7 +58,8 @@ if args.time:
     
 if args.error:    
 
-    all_last_vals = comm.gather(last_slice_vals, root=0)
+    # all_last_vals = comm.gather(last_slice_vals, root=0)
+    all_last_vals = comm.gather((rank, region.slices[nt-1]), root=0)
 
     if rank==0:
 
@@ -94,14 +69,12 @@ if args.error:
             s.solve()
 
         exact_views = region_views(s.x, n_reg, 0)
-        errors = [[np.max(np.abs(exact_views[z]-v0))
-                   for (z, _, v0) in v]
-                   for v in all_last_vals]
+        errors = [np.max(np.abs(exact_views[z]-v0))
+                  for (z, v0) in all_last_vals]
 
         errors = np.array(errors)
 
-        for i in range(len(errors[0])):
-            print "Itr", i+1, ":", np.max(errors[:, i])
+        print np.max(errors)
         
 if args.plot:
 
