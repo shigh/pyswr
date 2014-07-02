@@ -4,6 +4,7 @@ import numpy as np
 from mpi4py import MPI
 from pyswr.region import *
 from pyswr.utils import *
+from pyswr.swr import *
 
 args = parser1d.parse_args()
 
@@ -25,49 +26,17 @@ f0          = np.sin(x_vals)
 
 A = one_d_heat_btcs(len(f0), dx, dt)
 solver = ImplicitSolver1D(A)
-r      = Region(nt, len(f0))
-solver.x[:]    = f0
-r.slices[0][:] = f0
+region = Region(nt, len(f0))
+solver.x[:] = f0
+region.slices[0][:] = f0
 
-has_left  = rank>0
-has_right = rank<size-1
- 
-right = rank+1
-left  = rank-1
-    
-if has_right:
-    r.add_col(0, -1-offset)
-if has_left:
-    r.add_col(0, offset)
-    
-for _ in range(args.steps):
-    solver.x[:] = f0
-    
-    for i in range(1, nt):
-        solver.left  = r.cols[0][0][i]
-        solver.right = r.cols[0][-1][i]
-        solver.solve()
-        r.update_cols(i, solver.x)
-        
-    send_requests = []
-    if has_right:
-        rr = comm.Isend(r.cols[0][-1-offset], dest=right)
-        send_requests.append(rr)
-    if has_left:
-        rl = comm.Isend(r.cols[0][offset], dest=left)
-        send_requests.append(rl)
-        
-    if has_right:
-        comm.Recv(r.cols[0][-1], source=right)
-    if has_left:
-        comm.Recv(r.cols[0][0], source=left)
-        
-    MPI.Request.Waitall(send_requests)
+
+swr_1d_heat(MPI, comm, size, region, solver, f0, args.steps, offset)
 
 
 if args.error:    
     expected = np.exp(-1.)*f0    
-    error = np.max(np.abs(r.slices[nt-1] - expected))
+    error = np.max(np.abs(region.slices[nt-1] - expected))
     all_error = comm.gather(error, root=0)
 
     if rank==0:
@@ -78,7 +47,7 @@ if args.error:
 if args.plot:
 
     all_x_vals = comm.gather(x_vals, root=0)
-    all_f_vals = comm.gather(r.slices[nt-1], root=0)
+    all_f_vals = comm.gather(region.slices[nt-1], root=0)
 
     if rank==0:
         import matplotlib.pyplot as plt
