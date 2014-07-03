@@ -6,6 +6,7 @@ from mpi4py import MPI
 from pyswr.region import *
 from pyswr.recursive import *
 from pyswr.utils import *
+from pyswr.swr import *
 
 args = parser2d.parse_args()
 
@@ -30,17 +31,6 @@ has_left  = rx>0
 has_right = rx<n_reg_x-1
 has_north = ry<n_reg_y-1
 has_south = ry>0
-left = right = north = south = None
-
-# Get ranks of adjacent nodes
-if has_left:
-    left = cart.Get_cart_rank((ry, rx-1))
-if has_right:
-    right = cart.Get_cart_rank((ry, rx+1))
-if has_north:
-    north = cart.Get_cart_rank((ry+1, rx))
-if has_south:
-    south = cart.Get_cart_rank((ry-1, rx))
 
 
 #####################################    
@@ -55,8 +45,8 @@ dt = 1./(nt-1)
 dx = x_max/(nx-1)
 dy = y_max/(ny-1)
 
-x_range = region_slice_index(nx, n_reg_x, 0)[rx]
-y_range = region_slice_index(ny, n_reg_y, 0)[ry]
+x_range = partition_domain(nx, n_reg_x, 0)[rx]
+y_range = partition_domain(ny, n_reg_y, 0)[ry]
 x_start, x_end = x_range[0]*dx, (x_range[1]-1)*dx
 y_start, y_end = y_range[0]*dy, (y_range[1]-1)*dy
 x_points = x_range[1]-x_range[0]
@@ -77,55 +67,12 @@ region.slices[0][:] = f0
 
 #############################
 # Schwartz waveform Iteration
-last_slice_vals = []
-def update_last_slice_vals(t, step):
-    if args.error and t==(nt-1):
-        last_slice_vals.append(((ry, rx), step, region.slices[nt-1].copy()))
 
 start = time.clock()
-for step in range(args.steps):
 
-    # Reset solver for next iteration
-    solver.x[:] = region.slices[0]
+swr_2dopt_heat(MPI, comm, (n_reg_y, n_reg_x), region, solver, args.steps)
+comm.Barrier()
 
-    # Apply solver over each time step
-    for t in range(1, nt):
-        # TODO Convert this to a nested list comprehension
-        solver.g = [[region.g[0][0][t], region.g[0][-1][t]],
-                    [region.g[1][0][t], region.g[1][-1][t]]]
-        solver.solve()
-        region.update_cols(t, solver.x)
-        update_last_slice_vals(t, step)
-
-
-    # Communicate with adjacent regions
-    send_requests = []
-    if has_right:
-        rr = comm.Isend(region.send_g(1, -1), dest=right)
-        send_requests.append(rr)
-    if has_left:
-        rl = comm.Isend(region.send_g(1, 0), dest=left)
-        send_requests.append(rl)
-    if has_north:
-        rn = comm.Isend(region.send_g(0, -1), dest=north)
-        send_requests.append(rn)
-    if has_south:
-        rs = comm.Isend(region.send_g(0, 0), dest=south)
-        send_requests.append(rs)
-        
-    if has_right:
-        comm.Recv(region.g[1][-1], source=right)
-    if has_left:
-        comm.Recv(region.g[1][0], source=left)
-    if has_north:
-        comm.Recv(region.g[0][-1], source=north)
-    if has_south:
-        comm.Recv(region.g[0][0], source=south)
-        
-    MPI.Request.Waitall(send_requests)
-        
-
-comm.Barrier()    
 end = time.clock()
 elapsed_time = end - start
 
@@ -138,7 +85,7 @@ if args.time:
 
 if args.error:    
 
-    all_last_vals = comm.gather(last_slice_vals, root=0)
+    all_last_vals = comm.gather(((ry, rx), region.slices[nt-1]), root=0)
 
     if rank==0:
 
@@ -153,14 +100,10 @@ if args.error:
             s.solve()
 
         exact_views = region_views_2d(s.x, n_reg_y, n_reg_x)
-        errors = [[np.max(np.abs(exact_views[z[0]][z[1]]-v0))
-                   for (z, _, v0) in v]
-                   for v in all_last_vals]
+        errors = [np.max(np.abs(exact_views[z[0]][z[1]]-v0))
+                  for (z, v0) in all_last_vals]
 
-        errors = np.array(errors)
-
-        for i in range(len(errors[0])):
-            print "Itr", i+1, ":", np.max(errors[:, i])
+        print np.max(errors)
                             
 if args.plot:
 

@@ -167,3 +167,75 @@ def swr_1dopt_pipe_heat(MPI, comm, dims, region, solver, steps):
         it_table.advance()
 
     return it_table
+
+
+def swr_2dopt_heat(MPI, comm, dims, region, solver, steps):
+
+    nt = region.nt
+    rank = comm.rank
+    size = comm.size
+
+    n_reg_y, n_reg_x = dims
+    cart   = comm.Create_cart((n_reg_y, n_reg_x))
+    # The location of this nodes region
+    ry, rx = cart.Get_coords(rank) 
+
+    # Determine which adjacent nodes exist
+    has_left  = rx>0
+    has_right = rx<n_reg_x-1
+    has_north = ry<n_reg_y-1
+    has_south = ry>0
+    left = right = north = south = None
+
+    # Get ranks of adjacent nodes
+    if has_left:
+        left = cart.Get_cart_rank((ry, rx-1))
+    if has_right:
+        right = cart.Get_cart_rank((ry, rx+1))
+    if has_north:
+        north = cart.Get_cart_rank((ry+1, rx))
+    if has_south:
+        south = cart.Get_cart_rank((ry-1, rx))
+
+
+    for step in range(steps):
+
+        # Reset solver for next iteration
+        solver.x[:] = region.slices[0]
+
+        # Apply solver over each time step
+        for t in range(1, nt):
+            # TODO Convert this to a nested list comprehension
+            solver.g = [[region.g[0][0][t], region.g[0][-1][t]],
+                        [region.g[1][0][t], region.g[1][-1][t]]]
+            solver.solve()
+            region.update_cols(t, solver.x)
+            # update_last_slice_vals(t, step)
+
+
+        # Communicate with adjacent regions
+        send_requests = []
+        if has_right:
+            rr = comm.Isend(region.send_g(1, -1), dest=right)
+            send_requests.append(rr)
+        if has_left:
+            rl = comm.Isend(region.send_g(1, 0), dest=left)
+            send_requests.append(rl)
+        if has_north:
+            rn = comm.Isend(region.send_g(0, -1), dest=north)
+            send_requests.append(rn)
+        if has_south:
+            rs = comm.Isend(region.send_g(0, 0), dest=south)
+            send_requests.append(rs)
+
+        if has_right:
+            comm.Recv(region.g[1][-1], source=right)
+        if has_left:
+            comm.Recv(region.g[1][0], source=left)
+        if has_north:
+            comm.Recv(region.g[0][-1], source=north)
+        if has_south:
+            comm.Recv(region.g[0][0], source=south)
+
+        MPI.Request.Waitall(send_requests)
+    
