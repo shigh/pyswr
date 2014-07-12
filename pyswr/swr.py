@@ -1,5 +1,6 @@
 
 from pyswr.itertable import *
+from pyswr.utils import *
 
 
 def swr_1d_heat(MPI, comm, dims, region, solver, f0, steps, offset):
@@ -47,14 +48,30 @@ def swr_1d_heat(MPI, comm, dims, region, solver, f0, steps, offset):
 
 def swr_1dopt_heat(MPI, comm, dims, region, solver, steps):
 
-    rank  = comm.rank
-    size  = comm.size
+    dims = as_tuple(dims)
+    n_dims = len(dims)
     
-    has_left  = rank>0
-    has_right = rank<size-1
-
-    right = rank+1
-    left  = rank-1
+    rank   = comm.rank
+    size   = comm.size
+    cart   = comm.Create_cart(dims)
+    coords = cart.Get_coords(rank)
+    
+    nb = []
+    for dim in range(n_dims):
+        nb.append([-1, -1])
+        loc  = coords[dim]
+        dmax = dims[dim]
+        if loc>0:
+            left_loc = list(coords)
+            left_loc[dim] -= 1
+            left = cart.Get_cart_rank(tuple(left_loc))
+            nb[-1][0]  = left
+            
+        if loc<dmax-1:
+            right_loc = list(coords)
+            right_loc[dim] += 1
+            right = cart.Get_cart_rank(tuple(right_loc))
+            nb[-1][-1]  = right
 
     nt = region.nt
     for step in range(steps):
@@ -67,20 +84,22 @@ def swr_1dopt_heat(MPI, comm, dims, region, solver, steps):
             solver.g = [region.g[0][0][t], region.g[0][-1][t]]
             solver.solve()
             region.update_cols(t, solver.x)
-            # update_last_slice_vals(t, step)
 
         send_requests = []
-        if has_right:
-            rr = comm.Isend(region.send_g(0, -1), dest=right)
-            send_requests.append(rr)
-        if has_left:
-            rl = comm.Isend(region.send_g(0, 0), dest=left)
-            send_requests.append(rl)
+        for dim in range(n_dims):
+            if nb[dim][0]!=-1:
+                rr = comm.Isend(region.send_g(dim, 0),  dest=nb[dim][0])
+                send_requests.append(rr)
+            if nb[dim][-1]!=-1:
+                rr = comm.Isend(region.send_g(dim, -1), dest=nb[dim][-1])
+                send_requests.append(rr)
 
-        if has_right:
-            comm.Recv(region.g[0][-1], source=right)
-        if has_left:
-            comm.Recv(region.g[0][0], source=left)
+        for dim in range(n_dims):
+            if nb[dim][0]!=-1:
+                comm.Recv(region.g[dim][0],  source=nb[dim][0])
+            if nb[dim][-1]!=-1:
+                comm.Recv(region.g[dim][-1], source=nb[dim][-1])
+
 
         MPI.Request.Waitall(send_requests)
     
