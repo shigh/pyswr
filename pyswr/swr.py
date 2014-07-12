@@ -193,30 +193,29 @@ def swr_2dopt_heat(MPI, comm, dims, region, solver, steps):
     nt = region.nt
     rank = comm.rank
     size = comm.size
+    n_dims = len(dims)
 
-    n_reg_y, n_reg_x = dims
-    cart   = comm.Create_cart((n_reg_y, n_reg_x))
+    cart   = comm.Create_cart(dims)
+    coords = cart.Get_coords(rank)
     # The location of this nodes region
-    ry, rx = cart.Get_coords(rank) 
 
-    # Determine which adjacent nodes exist
-    has_left  = rx>0
-    has_right = rx<n_reg_x-1
-    has_north = ry<n_reg_y-1
-    has_south = ry>0
-    left = right = north = south = None
-
-    # Get ranks of adjacent nodes
-    if has_left:
-        left = cart.Get_cart_rank((ry, rx-1))
-    if has_right:
-        right = cart.Get_cart_rank((ry, rx+1))
-    if has_north:
-        north = cart.Get_cart_rank((ry+1, rx))
-    if has_south:
-        south = cart.Get_cart_rank((ry-1, rx))
-
-
+    nb = []
+    for dim in range(n_dims):
+        nb.append([-1, -1])
+        loc  = coords[dim]
+        dmax = dims[dim]
+        if loc>0:
+            left_loc = list(coords)
+            left_loc[dim] -= 1
+            left = cart.Get_cart_rank(tuple(left_loc))
+            nb[-1][0]  = left
+            
+        if loc<dmax-1:
+            right_loc = list(coords)
+            right_loc[dim] += 1
+            right = cart.Get_cart_rank(tuple(right_loc))
+            nb[-1][-1]  = right
+    
     for step in range(steps):
 
         # Reset solver for next iteration
@@ -229,33 +228,22 @@ def swr_2dopt_heat(MPI, comm, dims, region, solver, steps):
                         [region.g[1][0][t], region.g[1][-1][t]]]
             solver.solve()
             region.update_cols(t, solver.x)
-            # update_last_slice_vals(t, step)
 
-
-        # Communicate with adjacent regions
         send_requests = []
-        if has_right:
-            rr = comm.Isend(region.send_g(1, -1), dest=right)
-            send_requests.append(rr)
-        if has_left:
-            rl = comm.Isend(region.send_g(1, 0), dest=left)
-            send_requests.append(rl)
-        if has_north:
-            rn = comm.Isend(region.send_g(0, -1), dest=north)
-            send_requests.append(rn)
-        if has_south:
-            rs = comm.Isend(region.send_g(0, 0), dest=south)
-            send_requests.append(rs)
+        for dim in range(n_dims):
+            if nb[dim][0]!=-1:
+                rr = comm.Isend(region.send_g(dim, 0),  dest=nb[dim][0])
+                send_requests.append(rr)
+            if nb[dim][-1]!=-1:
+                rr = comm.Isend(region.send_g(dim, -1), dest=nb[dim][-1])
+                send_requests.append(rr)
 
-        if has_right:
-            comm.Recv(region.g[1][-1], source=right)
-        if has_left:
-            comm.Recv(region.g[1][0], source=left)
-        if has_north:
-            comm.Recv(region.g[0][-1], source=north)
-        if has_south:
-            comm.Recv(region.g[0][0], source=south)
-
+        for dim in range(n_dims):
+            if nb[dim][0]!=-1:
+                comm.Recv(region.g[dim][0],  source=nb[dim][0])
+            if nb[dim][-1]!=-1:
+                comm.Recv(region.g[dim][-1], source=nb[dim][-1])
+            
         MPI.Request.Waitall(send_requests)
 
     
