@@ -27,8 +27,6 @@ def swr_1d_heat(MPI, comm, dims, region, solver, f0, steps, offset):
         for i in range(1, nt):
             solver.left  = region.cols[0][0][i]
             solver.right = region.cols[0][-1][i]
-            solver.g = [[region.g[dim][i][t] for i in [0,-1]]
-                        for dim in range(n_dims)]
             
             solver.solve()
             region.update_cols(i, solver.x)
@@ -49,7 +47,7 @@ def swr_1d_heat(MPI, comm, dims, region, solver, f0, steps, offset):
         MPI.Request.Waitall(send_requests)
 
 
-def swr_1dopt_heat(MPI, comm, dims, region, solver, steps):
+def swr_opt_heat(MPI, comm, dims, region, solver, steps):
 
     dims = as_tuple(dims)
     n_dims = len(dims)
@@ -191,64 +189,6 @@ def swr_1dopt_pipe_heat(MPI, comm, dims, region, solver, steps):
         it_table.advance()
 
     return it_table
-
-
-def swr_2dopt_heat(MPI, comm, dims, region, solver, steps):
-
-    nt = region.nt
-    rank = comm.rank
-    size = comm.size
-    n_dims = len(dims)
-
-    cart   = comm.Create_cart(dims)
-    coords = cart.Get_coords(rank)
-    # The location of this nodes region
-
-    nb = []
-    for dim in range(n_dims):
-        nb.append([-1, -1])
-        loc  = coords[dim]
-        dmax = dims[dim]
-        if loc>0:
-            left_loc = list(coords)
-            left_loc[dim] -= 1
-            left = cart.Get_cart_rank(tuple(left_loc))
-            nb[-1][0]  = left
-            
-        if loc<dmax-1:
-            right_loc = list(coords)
-            right_loc[dim] += 1
-            right = cart.Get_cart_rank(tuple(right_loc))
-            nb[-1][-1]  = right
-    
-    for step in range(steps):
-
-        # Reset solver for next iteration
-        solver.x[:] = region.slices[0]
-
-        # Apply solver over each time step
-        for t in range(1, nt):
-            solver.g = [[region.g[dim][i][t] for i in [0,-1]]
-                        for dim in range(n_dims)]
-            solver.solve()
-            region.update_cols(t, solver.x)
-
-        send_requests = []
-        for dim in range(n_dims):
-            if nb[dim][0]!=-1:
-                rr = comm.Isend(region.send_g(dim, 0),  dest=nb[dim][0])
-                send_requests.append(rr)
-            if nb[dim][-1]!=-1:
-                rr = comm.Isend(region.send_g(dim, -1), dest=nb[dim][-1])
-                send_requests.append(rr)
-
-        for dim in range(n_dims):
-            if nb[dim][0]!=-1:
-                comm.Recv(region.g[dim][0],  source=nb[dim][0])
-            if nb[dim][-1]!=-1:
-                comm.Recv(region.g[dim][-1], source=nb[dim][-1])
-            
-        MPI.Request.Waitall(send_requests)
 
     
 def swr_2dopt_pipe_heat(MPI, comm, dims, region, solver, steps):

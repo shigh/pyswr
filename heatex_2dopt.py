@@ -70,7 +70,7 @@ region.slices[0][:] = f0
 
 start = time.clock()
 
-swr_2dopt_heat(MPI, comm, (n_reg_y, n_reg_x), region, solver, args.steps)
+swr_opt_heat(MPI, comm, (n_reg_y, n_reg_x), region, solver, args.steps)
 comm.Barrier()
 
 end = time.clock()
