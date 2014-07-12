@@ -27,6 +27,9 @@ def swr_1d_heat(MPI, comm, dims, region, solver, f0, steps, offset):
         for i in range(1, nt):
             solver.left  = region.cols[0][0][i]
             solver.right = region.cols[0][-1][i]
+            solver.g = [[region.g[dim][i][t] for i in [0,-1]]
+                        for dim in range(n_dims)]
+            
             solver.solve()
             region.update_cols(i, solver.x)
 
@@ -81,7 +84,9 @@ def swr_1dopt_heat(MPI, comm, dims, region, solver, steps):
 
         # Apply solver over each time step
         for t in range(1, nt):
-            solver.g = [region.g[0][0][t], region.g[0][-1][t]]
+            solver.g = [[region.g[dim][i][t] for i in [0,-1]]
+                        for dim in range(n_dims)]
+
             solver.solve()
             region.update_cols(t, solver.x)
 
@@ -223,9 +228,8 @@ def swr_2dopt_heat(MPI, comm, dims, region, solver, steps):
 
         # Apply solver over each time step
         for t in range(1, nt):
-            # TODO Convert this to a nested list comprehension
-            solver.g = [[region.g[0][0][t], region.g[0][-1][t]],
-                        [region.g[1][0][t], region.g[1][-1][t]]]
+            solver.g = [[region.g[dim][i][t] for i in [0,-1]]
+                        for dim in range(n_dims)]
             solver.solve()
             region.update_cols(t, solver.x)
 

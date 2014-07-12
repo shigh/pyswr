@@ -17,7 +17,7 @@ class ImplicitSolver1DRec(object):
         self.k  = dt/(dx**2)
         self.has_left  = has_left
         self.has_right = has_right
-        self.g  = [0., 0.]
+        self.g  = [[0., 0.]]
 
         self.build_A()
     
@@ -36,9 +36,9 @@ class ImplicitSolver1DRec(object):
         tmp = self.x.copy()
         
         if self.has_left:
-            tmp[0] -= 2*self.k*self.dx*self.g[0]
+            tmp[0] -= 2*self.k*self.dx*self.g[0][0]
         if self.has_right:
-            tmp[-1] += 2*self.k*self.dx*self.g[1]
+            tmp[-1] += 2*self.k*self.dx*self.g[0][1]
         
         self.x[:] = self.solver(self.A, tmp)
 
@@ -65,9 +65,9 @@ class ImplicitSolver1DRec(object):
         sg = [None, None]
         
         if self.has_left:
-            sg[0] = self.g[0]+2*self.p*self.x[0]
+            sg[0] = self.g[0][0]+2*self.p*self.x[0]
         if self.has_right:
-            sg[1] = self.g[1]-2*self.p*self.x[-1]
+            sg[1] = self.g[0][1]-2*self.p*self.x[-1]
             
         return tuple(sg)
 
