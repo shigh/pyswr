@@ -109,80 +109,79 @@ def swr_opt_heat(MPI, comm, dims, region, solver, steps):
 
 def swr_1dopt_pipe_heat(MPI, comm, dims, region, solver, steps):
 
-    rank  = comm.rank
-    size  = comm.size
+    dims   = as_tuple(dims)
+    n_dims = len(dims)-1
 
-    nt = region.nt
-    n_itr, n_reg = dims
-    # TODO Check if comm is a cart
-    cart   = comm.Create_cart(dims)
-    # The location of this nodes region
-    itr, reg = cart.Get_coords(rank)
-    it_table = IterTable(cart, nt, steps)
-
-    has_left     = reg>0
-    has_right    = reg<n_reg-1
-    has_prev_itr = itr>0       or itr==0
-    has_next_itr = itr<n_itr-1 or itr==n_itr-1
-
-    right = left = next_itr = prev_itr = None
-    next_itr_left = next_itr_right     = None
-    prev_itr_left = prev_itr_right     = None
-
-
-    if itr!=0 and itr!=n_itr-1:
-        if has_left:
-            prev_itr_left  = cart.Get_cart_rank((itr-1, reg-1))
-            next_itr_left  = cart.Get_cart_rank((itr+1, reg-1))
-        if has_right:
-            prev_itr_right = cart.Get_cart_rank((itr-1, reg+1))
-            next_itr_right = cart.Get_cart_rank((itr+1, reg+1))            
-    elif itr==0:
-        if has_left:
-            prev_itr_left  = cart.Get_cart_rank((n_itr-1, reg-1))
-            next_itr_left  = cart.Get_cart_rank((itr+1, reg-1))
-        if has_right:
-            prev_itr_right = cart.Get_cart_rank((n_itr-1, reg+1))
-            next_itr_right = cart.Get_cart_rank((itr+1, reg+1))
-    elif itr==n_itr-1:
-        if has_left:
-            next_itr_left  = cart.Get_cart_rank((0, reg-1))
-            prev_itr_left  = cart.Get_cart_rank((itr-1, reg-1))
-        if has_right:
-            next_itr_right = cart.Get_cart_rank((0, reg+1))
-            prev_itr_right = cart.Get_cart_rank((itr-1, reg+1))
+    rank = comm.rank
+    size = comm.size
+    periods    = [False]*(n_dims+1)
+    periods[0] = True
+    cart   = comm.Create_cart(dims, periods=periods)
+    coords = cart.Get_coords(rank)
     
+    nb = []
+    for dim in range(1, n_dims+1):
+        nb.append([[-1, -1], [-1, -1]])
+        loc  = coords[dim]
+        dmax = dims[dim]
+        if loc>0:
+            left_loc = list(coords)
+            left_loc[dim] -= 1
+            # Prev itr
+            left_loc[0]    = coords[0]-1
+            left = cart.Get_cart_rank(tuple(left_loc))
+            nb[-1][0][0]   = left
+            # Next itr
+            left_loc[0]    = coords[0]+1
+            left = cart.Get_cart_rank(tuple(left_loc))
+            nb[-1][+1][0]  = left
+            
+        if loc<dmax-1:
+            right_loc = list(coords)
+            right_loc[dim] += 1
+            # Prev itr
+            right_loc[0]    = coords[0]-1
+            right = cart.Get_cart_rank(tuple(right_loc))
+            nb[-1][0][-1]   = right
+            # Next itr
+            right_loc[0]    = coords[0]+1
+            right = cart.Get_cart_rank(tuple(right_loc))
+            nb[-1][+1][-1]  = right
 
+    nt   = region.nt
+    it_table = IterTable(cart, nt, steps)
     while not it_table.has_finished:
 
         t = it_table.t
-
         # Reset for next iteration
         if it_table.reset_solver:
             solver.x[:] = region.slices[0]
 
-        send_requests = []
-
         if t>0:
-            solver.g = [region.g[0][0][t], region.g[0][-1][t]]
+            solver.g = [[region.g[dim][i][t] for i in [0,-1]]
+                        for dim in range(n_dims)]
             solver.solve()
             region.update_cols(t, solver.x)
 
+        send_requests = []            
         if it_table.next_active and t>0:
-            if has_right:
-                rnr = comm.Isend(region.send_g(0, -1)[t:t+1], dest=next_itr_right)
-                send_requests.append(rnr)
-            if has_left:
-                rnl = comm.Isend(region.send_g(0, 0)[t:t+1], dest=next_itr_left)
-                send_requests.append(rnl)
+
+            for dim in range(n_dims):
+                if nb[dim][1][0]!=-1:
+                    rr = comm.Isend(region.send_g(dim, 0)[t:t+1],  dest=nb[dim][1][0])
+                    send_requests.append(rr)
+                if nb[dim][1][-1]!=-1:
+                    rr = comm.Isend(region.send_g(dim, -1)[t:t+1], dest=nb[dim][1][-1])
+                    send_requests.append(rr)
 
         if it_table.prev_active:
-            tp = it_table.t_prev
-            if has_right:
-                comm.Recv(region.g[0][-1][tp:tp+1], source=prev_itr_right)
-            if has_left:
-                comm.Recv(region.g[0][0][tp:tp+1], source=prev_itr_left)
 
+            tp = it_table.t_prev
+            for dim in range(n_dims):
+                if nb[dim][0][0]!=-1:
+                    comm.Recv(region.g[dim][0][tp:tp+1],  source=nb[dim][0][0])
+                if nb[dim][0][-1]!=-1:
+                    comm.Recv(region.g[dim][-1][tp:tp+1], source=nb[dim][0][-1])
 
         MPI.Request.Waitall(send_requests)
 
