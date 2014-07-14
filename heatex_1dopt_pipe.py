@@ -53,7 +53,7 @@ solver.x[:] = region.slices[0]
 
 start = time.clock()
 
-it_table = swr_1dopt_pipe_heat(MPI, comm, (n_itr, n_reg), region, solver, args.steps)        
+it_table = pswr_opt_heat(MPI, comm, (n_itr, n_reg), region, solver, args.steps)        
 
 # Wait for all processes to finish so the timing is meaningful        
 comm.Barrier()        

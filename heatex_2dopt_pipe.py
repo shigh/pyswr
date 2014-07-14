@@ -71,7 +71,7 @@ solver.x[:] = region.slices[0]
 # Schwartz waveform Iteration
 start = time.clock()
 
-it_table = swr_2dopt_pipe_heat(MPI, comm, (n_itr, n_reg_y, n_reg_x), region, solver, args.steps)
+it_table = pswr_opt_heat(MPI, comm, (n_itr, n_reg_y, n_reg_x), region, solver, args.steps)
 comm.Barrier()
 
 end = time.clock()
