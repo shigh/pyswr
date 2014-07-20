@@ -25,7 +25,7 @@ f0          = np.sin(x_vals)
 
 A = one_d_heat_btcs(len(f0), dx, dt)
 solver = ImplicitSolver1D(A)
-region = Region(nt, len(f0))
+region = BoundarySet(nt, len(f0))
 solver.x[:] = f0
 region.slices[0][:] = f0
 

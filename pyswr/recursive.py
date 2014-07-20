@@ -241,11 +241,11 @@ class ImplicitSolver2DRec(object):
         return tuple(sg)
         
 
-class RecRegion(Region):
-    """Extends Region to handle recursive boundary conditions
+class RecBoundarySet(BoundarySet):
+    """Extends BoundarySet to handle recursive boundary conditions
     """
     def __init__(self, nt, dims, p=1.):
-        Region.__init__(self, nt, dims)
+        BoundarySet.__init__(self, nt, dims)
         self.p = p
         # Add buffers for recursive g params
         self.g = []

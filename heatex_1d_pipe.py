@@ -32,7 +32,7 @@ x0      = region_views(x0_full, n_reg, overlap)[reg]
 A = one_d_heat_btcs(len(x0), dx, dt)
 
 solver = ImplicitSolver1D(A)
-r      = Region(nt, len(x0))
+r      = BoundarySet(nt, len(x0))
 solver.x[:]    = x0
 r.slices[0][:] = x0
 

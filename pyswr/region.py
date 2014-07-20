@@ -19,7 +19,7 @@ class ImplicitSolver1D(object):
         self.x[:] = self.solver(self.A, tmp)
 
 
-class Region(object):
+class BoundarySet(object):
     """Data structure for time dependent pde's
     """
     

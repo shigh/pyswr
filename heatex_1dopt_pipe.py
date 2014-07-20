@@ -42,7 +42,7 @@ x0 = region_views(x0_full, n_reg, 0)[reg]
 
 # Build solver and region
 solver = ImplicitSolver1DRec(dt, len(f0), dx, has_left, has_right)
-region = RecRegion(nt, len(solver.x))
+region = RecBoundarySet(nt, len(solver.x))
 region.slices[0][:] = f0
 
 solver.x[:] = region.slices[0]

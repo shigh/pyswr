@@ -63,7 +63,7 @@ solver = ImplicitSolver2DRec(dt, f0.shape[0], dy,
                                  has_north, has_south)
                                  
 # Build region
-region = RecRegion(nt, solver.x.shape)
+region = RecBoundarySet(nt, solver.x.shape)
 region.slices[0][:] = f0
 solver.x[:] = region.slices[0]
 
