@@ -88,23 +88,25 @@ def swr_opt_heat(MPI, comm, dims, region, solver, steps):
             solver.solve()
             region.update_cols(t, solver.x)
 
-        send_requests = []
+        requests = []
         for dim in range(n_dims):
             if nb[dim][0]!=-1:
                 rr = comm.Isend(region.send_g(dim, 0),  dest=nb[dim][0])
-                send_requests.append(rr)
+                requests.append(rr)
             if nb[dim][-1]!=-1:
                 rr = comm.Isend(region.send_g(dim, -1), dest=nb[dim][-1])
-                send_requests.append(rr)
+                requests.append(rr)
 
         for dim in range(n_dims):
             if nb[dim][0]!=-1:
-                comm.Recv(region.g[dim][0],  source=nb[dim][0])
+                rr = comm.Irecv(region.g[dim][0],  source=nb[dim][0])
+                requests.append(rr)                
             if nb[dim][-1]!=-1:
-                comm.Recv(region.g[dim][-1], source=nb[dim][-1])
+                rr = comm.Irecv(region.g[dim][-1], source=nb[dim][-1])
+                requests.append(rr)
 
 
-        MPI.Request.Waitall(send_requests)
+        MPI.Request.Waitall(requests)
     
 
 def pswr_opt_heat(MPI, comm, dims, region, solver, steps):
@@ -163,27 +165,29 @@ def pswr_opt_heat(MPI, comm, dims, region, solver, steps):
             solver.solve()
             region.update_cols(t, solver.x)
 
-        send_requests = []            
+        requests = []            
         if it_table.next_active and t>0:
 
             for dim in range(n_dims):
                 if nb[dim][1][0]!=-1:
                     rr = comm.Isend(region.send_g(dim, 0)[t:t+1],  dest=nb[dim][1][0])
-                    send_requests.append(rr)
+                    requests.append(rr)
                 if nb[dim][1][-1]!=-1:
                     rr = comm.Isend(region.send_g(dim, -1)[t:t+1], dest=nb[dim][1][-1])
-                    send_requests.append(rr)
+                    requests.append(rr)
 
         if it_table.prev_active:
 
             tp = it_table.t_prev
             for dim in range(n_dims):
                 if nb[dim][0][0]!=-1:
-                    comm.Recv(region.g[dim][0][tp:tp+1],  source=nb[dim][0][0])
+                    rr = comm.Irecv(region.g[dim][0][tp:tp+1],  source=nb[dim][0][0])
+                    requests.append(rr)                    
                 if nb[dim][0][-1]!=-1:
-                    comm.Recv(region.g[dim][-1][tp:tp+1], source=nb[dim][0][-1])
+                    rr = comm.Irecv(region.g[dim][-1][tp:tp+1], source=nb[dim][0][-1])
+                    requests.append(rr)
 
-        MPI.Request.Waitall(send_requests)
+        MPI.Request.Waitall(requests)
 
         it_table.advance()
 
